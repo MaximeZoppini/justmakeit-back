@@ -10,8 +10,8 @@ import java.util.Map;
 @NoArgsConstructor
 public class CollaborationMessage {
     private String sender;
-    private String type; // Ex: "JOIN", "NOTE_TOGGLED", "BPM_CHANGED"
+    private String type;
     private String projectId;
     private String deviceId;
-    private Map<String, Object> payload; // Contient les données spécifiques (ex: { note: 'C3', step: 4 })
+    private Map<String, Object> payload;
 }
