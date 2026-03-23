@@ -2,7 +2,8 @@ package com.justmakeit.api.controller;
 
 import be.tarsos.dsp.AudioDispatcher;
 import be.tarsos.dsp.io.jvm.JVMAudioInputStream;
-import be.tarsos.dsp.onsets.PercussionOnsetDetector;
+import be.tarsos.dsp.onsets.ComplexOnsetDetector;
+import be.tarsos.dsp.onsets.OnsetHandler;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -74,9 +75,15 @@ public class AudioController {
                 AudioDispatcher dispatcher = new AudioDispatcher(new JVMAudioInputStream(pcmStream), bufferSize, overlap);
                 float sampleRate = targetFormat.getSampleRate();
                 
-                // 3. Détecteur d'onsets plus sensible pour les cloches/plucks (sensibilité 8.0, seuil -70.0dB)
-                PercussionOnsetDetector detector = new PercussionOnsetDetector(sampleRate, bufferSize, 
-                    (time, salience) -> onsets.add(time), 8.0, -70.0);
+                // 3. Utilisation du ComplexOnsetDetector : bien meilleur pour les cloches et sons mélodiques
+                // Le seuil (0.25) définit la sensibilité. Plus il est bas, plus il détecte de petits pics.
+                ComplexOnsetDetector detector = new ComplexOnsetDetector(bufferSize, 0.35); // Seuil légèrement augmenté
+                detector.setHandler((time, salience) -> {
+                    // DEBOUNCING : On ignore les impacts trop proches (moins de 150ms)
+                    if (onsets.isEmpty() || (time - onsets.get(onsets.size() - 1) > 0.15)) {
+                        onsets.add(time);
+                    }
+                });
                 
                 dispatcher.addAudioProcessor(detector);
                 dispatcher.run(); // Bloquant jusqu'à la fin du fichier
@@ -90,9 +97,10 @@ public class AudioController {
         // Calcul des intervalles entre les impacts pour déduire le BPM
         List<Double> intervals = new ArrayList<>();
         for (int i = 1; i < onsets.size(); i++) {
-            double diff = onsets.get(i) - onsets.get(i - 1);
-            if (diff > 0.2) { // On ignore les onsets trop rapprochés (> 300 BPM)
-                intervals.add(diff);
+            double interval = onsets.get(i) - onsets.get(i - 1);
+            // On ne garde que les intervalles qui correspondent à un BPM entre 60 et 200
+            if (interval >= 0.3 && interval <= 1.0) {
+                intervals.add(interval);
             }
         }
         
@@ -101,10 +109,13 @@ public class AudioController {
         Collections.sort(intervals);
         double medianInterval = intervals.get(intervals.size() / 2);
         
+        if (medianInterval <= 0) return 128.0; // Sécurité anti-division par zéro
         double detectedBpm = 60.0 / medianInterval;
         
-        // Normalisation pour rester dans une plage de BPM standard (ex: 75-170)
-        while (detectedBpm < 75) detectedBpm *= 2;
+        // Normalisation sécurisée pour rester dans une plage de BPM standard (ex: 75-175)
+        if (Double.isInfinite(detectedBpm) || Double.isNaN(detectedBpm)) return 128.0;
+        
+        while (detectedBpm > 0 && detectedBpm < 75) detectedBpm *= 2;
         while (detectedBpm > 175) detectedBpm /= 2;
 
         return detectedBpm;
