@@ -3,8 +3,10 @@ package com.justmakeit.api.controller;
 import be.tarsos.dsp.AudioDispatcher;
 import be.tarsos.dsp.io.jvm.JVMAudioInputStream;
 import be.tarsos.dsp.onsets.ComplexOnsetDetector;
-import be.tarsos.dsp.onsets.OnsetHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -15,6 +17,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/audio")
@@ -24,33 +27,64 @@ import java.util.List;
 })
 public class AudioController {
 
+    private static final Logger log = LoggerFactory.getLogger(AudioController.class);
+
+    // Whitelist des types MIME audio acceptés
+    private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
+            "audio/wav", "audio/x-wav",
+            "audio/mpeg", "audio/mp3",
+            "audio/aiff", "audio/x-aiff"
+    );
+
     @PostMapping("/analyze-bpm")
     public ResponseEntity<Map<String, Object>> analyzeBpm(@RequestParam("file") MultipartFile file) {
-        System.out.println("Fichier reçu pour analyse : " + file.getOriginalFilename());
+
+        // 1. Validation du type MIME
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType)) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("status", "Error");
+            error.put("message", "Type de fichier non supporté. Formats acceptés : WAV, MP3, AIFF.");
+            return ResponseEntity.status(400).body(error);
+        }
+
+        // 2. Sanitisation du nom de fichier (prévention Path Traversal)
+        String originalFilename = StringUtils.cleanPath(file.getOriginalFilename() != null ? file.getOriginalFilename() : "unknown");
+        if (originalFilename.contains("..") || originalFilename.contains("/") || originalFilename.contains("\\")) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("status", "Error");
+            error.put("message", "Nom de fichier invalide.");
+            return ResponseEntity.status(400).body(error);
+        }
+
+        log.info("Fichier reçu pour analyse : {}", originalFilename);
+        File tempFile = null;
         try {
-            // 1. Créer un fichier temporaire pour TarsosDSP
-            File tempFile = File.createTempFile("upload-", file.getOriginalFilename());
+            // 3. Fichier temp avec nom neutre (pas de suffixe original)
+            tempFile = File.createTempFile("bpm-analysis-", ".audio");
             file.transferTo(tempFile);
 
-            // 2. Analyser le BPM
+            // 4. Analyser le BPM
             double detectedBpm = performBpmAnalysis(tempFile);
 
-            // 3. Nettoyer le fichier temporaire
-            tempFile.delete();
-
             Map<String, Object> response = new HashMap<>();
-            response.put("bpm", Math.round(detectedBpm * 10.0) / 10.0); // Arrondi à 1 décimale
-            response.put("fileName", file.getOriginalFilename());
+            response.put("bpm", Math.round(detectedBpm * 10.0) / 10.0);
+            response.put("fileName", originalFilename);
             response.put("status", "Success");
             response.put("serverMessage", "Analyse terminée avec succès !");
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Erreur lors de l'analyse BPM pour le fichier '{}'", originalFilename, e);
             Map<String, Object> error = new HashMap<>();
             error.put("status", "Error");
-            error.put("message", "Erreur lors de l'analyse : " + e.getMessage());
+            error.put("message", "Une erreur est survenue lors de l'analyse. Vérifiez que le fichier est valide.");
             return ResponseEntity.status(500).body(error);
+        } finally {
+            // 5. Nettoyage garanti du fichier temporaire
+            if (tempFile != null && tempFile.exists()) {
+                tempFile.delete();
+            }
         }
     }
 

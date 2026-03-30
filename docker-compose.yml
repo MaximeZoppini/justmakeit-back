@@ -8,8 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5432:5432"
+    # Port 5432 NON exposé sur l'host — accès interne Docker uniquement
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -43,12 +42,14 @@ services:
     image: traefik:v3.0
     container_name: justmakeit-traefik
     command:
-      - "--api.insecure=true"
+      - "--api.insecure=false"          # Dashboard désactivé (pas d'accès non sécurisé)
+      - "--api.dashboard=false"         # Dashboard complètement désactivé
       - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
     ports:
       - "80:80"
-      - "8081:8080" # Dashboard
+      # Port 8081 (dashboard) supprimé — était exposé sans authentification
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
@@ -65,8 +66,7 @@ services:
       - .env
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/${POSTGRES_DB}
-    ports:
-      - "8080:8080"
+    # Port 8080 NON exposé sur l'host — tout le trafic passe par Traefik/Cloudflare
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=PathPrefix(`/api`)"
