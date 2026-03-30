@@ -18,7 +18,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/audio")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = {
+        "http://localhost:3000",
+        "https://justmakeit.maximezoppini.fr"
+})
 public class AudioController {
 
     @PostMapping("/analyze-bpm")
@@ -55,12 +58,14 @@ public class AudioController {
         final List<Double> onsets = new ArrayList<>();
         int bufferSize = 2048; // Augmenté pour une meilleure précision sur les samples mélodiques
         int overlap = 1024;
-        
-        // 1. Charger le flux directement depuis le fichier (plus fiable pour la détection de format par les SPI)
+
+        // 1. Charger le flux directement depuis le fichier (plus fiable pour la
+        // détection de format par les SPI)
         try (AudioInputStream stream = AudioSystem.getAudioInputStream(audioFile)) {
             AudioFormat baseFormat = stream.getFormat();
-            
-            // 2. Forcer la conversion en PCM_SIGNED 16-bit Mono (format requis par TarsosDSP)
+
+            // 2. Forcer la conversion en PCM_SIGNED 16-bit Mono (format requis par
+            // TarsosDSP)
             AudioFormat targetFormat = new AudioFormat(
                     AudioFormat.Encoding.PCM_SIGNED,
                     baseFormat.getSampleRate(),
@@ -68,15 +73,17 @@ public class AudioController {
                     1,
                     2,
                     baseFormat.getSampleRate(),
-                    false
-            );
-            
+                    false);
+
             try (AudioInputStream pcmStream = AudioSystem.getAudioInputStream(targetFormat, stream)) {
-                AudioDispatcher dispatcher = new AudioDispatcher(new JVMAudioInputStream(pcmStream), bufferSize, overlap);
+                AudioDispatcher dispatcher = new AudioDispatcher(new JVMAudioInputStream(pcmStream), bufferSize,
+                        overlap);
                 float sampleRate = targetFormat.getSampleRate();
-                
-                // 3. Utilisation du ComplexOnsetDetector : bien meilleur pour les cloches et sons mélodiques
-                // Le seuil (0.25) définit la sensibilité. Plus il est bas, plus il détecte de petits pics.
+
+                // 3. Utilisation du ComplexOnsetDetector : bien meilleur pour les cloches et
+                // sons mélodiques
+                // Le seuil (0.25) définit la sensibilité. Plus il est bas, plus il détecte de
+                // petits pics.
                 ComplexOnsetDetector detector = new ComplexOnsetDetector(bufferSize, 0.35); // Seuil légèrement augmenté
                 detector.setHandler((time, salience) -> {
                     // DEBOUNCING : On ignore les impacts trop proches (moins de 150ms)
@@ -84,7 +91,7 @@ public class AudioController {
                         onsets.add(time);
                     }
                 });
-                
+
                 dispatcher.addAudioProcessor(detector);
                 dispatcher.run(); // Bloquant jusqu'à la fin du fichier
             }
@@ -92,7 +99,8 @@ public class AudioController {
 
         System.out.println("Analyse terminée. Onsets détectés : " + onsets.size() + " pour " + audioFile.getName());
 
-        if (onsets.size() < 2) return 128.0;
+        if (onsets.size() < 2)
+            return 128.0;
 
         // Calcul des intervalles entre les impacts pour déduire le BPM
         List<Double> intervals = new ArrayList<>();
@@ -103,20 +111,26 @@ public class AudioController {
                 intervals.add(interval);
             }
         }
-        
-        if (intervals.isEmpty()) return 128.0;
+
+        if (intervals.isEmpty())
+            return 128.0;
 
         Collections.sort(intervals);
         double medianInterval = intervals.get(intervals.size() / 2);
-        
-        if (medianInterval <= 0) return 128.0; // Sécurité anti-division par zéro
+
+        if (medianInterval <= 0)
+            return 128.0; // Sécurité anti-division par zéro
         double detectedBpm = 60.0 / medianInterval;
-        
-        // Normalisation sécurisée pour rester dans une plage de BPM standard (ex: 75-175)
-        if (Double.isInfinite(detectedBpm) || Double.isNaN(detectedBpm)) return 128.0;
-        
-        while (detectedBpm > 0 && detectedBpm < 75) detectedBpm *= 2;
-        while (detectedBpm > 175) detectedBpm /= 2;
+
+        // Normalisation sécurisée pour rester dans une plage de BPM standard (ex:
+        // 75-175)
+        if (Double.isInfinite(detectedBpm) || Double.isNaN(detectedBpm))
+            return 128.0;
+
+        while (detectedBpm > 0 && detectedBpm < 75)
+            detectedBpm *= 2;
+        while (detectedBpm > 175)
+            detectedBpm /= 2;
 
         return detectedBpm;
     }
