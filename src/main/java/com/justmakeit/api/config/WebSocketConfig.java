@@ -12,9 +12,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        // Destination des messages sortants (du back vers le front)
+        // Output destination domain
         config.enableSimpleBroker("/topic");
-        // Préfixe des messages entrants (du front vers le back)
+        // Inbound destination application prefixes
         config.setApplicationDestinationPrefixes("/app");
     }
 

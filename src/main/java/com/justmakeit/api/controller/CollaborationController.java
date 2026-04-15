@@ -16,21 +16,19 @@ public class CollaborationController {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
-    // Stockage temporaire des participants pour assigner "Maker X"
+    // Transient memory allocation tracking identity indexing
     private final Map<String, Integer> projectParticipantsCount = new ConcurrentHashMap<>();
 
     @MessageMapping("/sync/{projectId}")
     public void broadcastUpdate(@DestinationVariable String projectId, CollaborationMessage message) {
         if ("JOIN".equals(message.getType())) {
-            // Logique pour assigner un nom "Maker X"
+            // Identity indexing assignment
             int count = projectParticipantsCount.getOrDefault(projectId, 0) + 1;
             projectParticipantsCount.put(projectId, count);
             message.setSender("Maker " + count);
         }
 
-        // Sauvegarde automatique ici (Appel à un ProjectService)
-        
-        // Envoi ciblé uniquement aux gens dans ce salon
+        // Restrict broadcast domain strictly to respective local namespace
         messagingTemplate.convertAndSend("/topic/project/" + projectId, message);
     }
 }

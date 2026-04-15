@@ -39,7 +39,7 @@ public class AudioController {
     @PostMapping("/analyze-bpm")
     public ResponseEntity<AudioAnalysisResponse> analyzeBpm(@RequestParam("file") MultipartFile file) {
 
-        // 1. Validation du type MIME
+        // 1. Validate MIME type
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType)) {
             return ResponseEntity.status(400).body(AudioAnalysisResponse.builder()
@@ -48,7 +48,7 @@ public class AudioController {
                     .build());
         }
 
-        // 2. Sanitisation du nom de fichier (prévention Path Traversal)
+        // 2. Filename sanitization against path traversal
         String originalFilename = StringUtils.cleanPath(file.getOriginalFilename() != null ? file.getOriginalFilename() : "unknown");
         if (originalFilename.contains("..") || originalFilename.contains("/") || originalFilename.contains("\\")) {
             return ResponseEntity.status(400).body(AudioAnalysisResponse.builder()
@@ -60,11 +60,11 @@ public class AudioController {
         log.info("Fichier reçu pour analyse : {}", originalFilename);
         File tempFile = null;
         try {
-            // 3. Fichier temp avec nom neutre (pas de suffixe original)
+            // 3. Create neutralized temporary file
             tempFile = File.createTempFile("bpm-analysis-", ".audio");
             file.transferTo(tempFile);
 
-            // 4. Analyser le BPM
+            // 4. Process BPM analysis
             double detectedBpm = performBpmAnalysis(tempFile);
 
             return ResponseEntity.ok(AudioAnalysisResponse.builder()
@@ -81,7 +81,7 @@ public class AudioController {
                     .message("Une erreur est survenue lors de l'analyse. Vérifiez que le fichier est valide.")
                     .build());
         } finally {
-            // 5. Nettoyage garanti du fichier temporaire
+            // 5. Hard guarantee cleanup of temp artifacts
             if (tempFile != null && tempFile.exists()) {
                 tempFile.delete();
             }
@@ -93,13 +93,11 @@ public class AudioController {
         int bufferSize = 2048; // Augmenté pour une meilleure précision sur les samples mélodiques
         int overlap = 1024;
 
-        // 1. Charger le flux directement depuis le fichier (plus fiable pour la
-        // détection de format par les SPI)
+        // 1. Direct stream loading for SPI format detection reliability
         try (AudioInputStream stream = AudioSystem.getAudioInputStream(audioFile)) {
             AudioFormat baseFormat = stream.getFormat();
 
-            // 2. Forcer la conversion en PCM_SIGNED 16-bit Mono (format requis par
-            // TarsosDSP)
+            // 2. Force constraint to PCM_SIGNED 16-bit Mono (TarsosDSP requisite)
             AudioFormat targetFormat = new AudioFormat(
                     AudioFormat.Encoding.PCM_SIGNED,
                     baseFormat.getSampleRate(),
@@ -113,13 +111,10 @@ public class AudioController {
                 AudioDispatcher dispatcher = new AudioDispatcher(new JVMAudioInputStream(pcmStream), bufferSize,
                         overlap);
 
-                // 3. Utilisation du ComplexOnsetDetector : bien meilleur pour les cloches et
-                // sons mélodiques
-                // Le seuil (0.25) définit la sensibilité. Plus il est bas, plus il détecte de
-                // petits pics.
-                ComplexOnsetDetector detector = new ComplexOnsetDetector(bufferSize, 0.35); // Seuil légèrement augmenté
+                // 3. Sensitive melodic ComplexOnsetDetector
+                ComplexOnsetDetector detector = new ComplexOnsetDetector(bufferSize, 0.35);
                 detector.setHandler((time, salience) -> {
-                    // DEBOUNCING : On ignore les impacts trop proches (moins de 150ms)
+                    // Depress adjacent proximate micro-impacts (debounce 150ms)
                     if (onsets.isEmpty() || (time - onsets.get(onsets.size() - 1) > 0.15)) {
                         onsets.add(time);
                     }
@@ -130,16 +125,16 @@ public class AudioController {
             }
         }
 
-        System.out.println("Analyse terminée. Onsets détectés : " + onsets.size() + " pour " + audioFile.getName());
+
 
         if (onsets.size() < 2)
             return 128.0;
 
-        // Calcul des intervalles entre les impacts pour déduire le BPM
+        // Deduce overall tempo from median inter-onset intervals
         List<Double> intervals = new ArrayList<>();
         for (int i = 1; i < onsets.size(); i++) {
             double interval = onsets.get(i) - onsets.get(i - 1);
-            // On ne garde que les intervalles qui correspondent à un BPM entre 60 et 200
+            // Filter logic strictly within plausible music 60-200 BPM interval parameters
             if (interval >= 0.3 && interval <= 1.0) {
                 intervals.add(interval);
             }
@@ -152,11 +147,10 @@ public class AudioController {
         double medianInterval = intervals.get(intervals.size() / 2);
 
         if (medianInterval <= 0)
-            return 128.0; // Sécurité anti-division par zéro
+            return 128.0; // Fail-safe handling zero division division
         double detectedBpm = 60.0 / medianInterval;
 
-        // Normalisation sécurisée pour rester dans une plage de BPM standard (ex:
-        // 75-175)
+        // Constrain extreme multiplier boundaries back to canonical (75-175) interval
         if (Double.isInfinite(detectedBpm) || Double.isNaN(detectedBpm))
             return 128.0;
 
