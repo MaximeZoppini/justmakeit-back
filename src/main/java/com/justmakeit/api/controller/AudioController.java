@@ -10,12 +10,12 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.justmakeit.api.dto.AudioAnalysisResponse;
 import javax.sound.sampled.*;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Map;
-import java.util.HashMap;
+
 import java.util.List;
 import java.util.Set;
 
@@ -37,24 +37,24 @@ public class AudioController {
     );
 
     @PostMapping("/analyze-bpm")
-    public ResponseEntity<Map<String, Object>> analyzeBpm(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<AudioAnalysisResponse> analyzeBpm(@RequestParam("file") MultipartFile file) {
 
         // 1. Validation du type MIME
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType)) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "Error");
-            error.put("message", "Type de fichier non supporté. Formats acceptés : WAV, MP3, AIFF.");
-            return ResponseEntity.status(400).body(error);
+            return ResponseEntity.status(400).body(AudioAnalysisResponse.builder()
+                    .status("Error")
+                    .message("Type de fichier non supporté. Formats acceptés : WAV, MP3, AIFF.")
+                    .build());
         }
 
         // 2. Sanitisation du nom de fichier (prévention Path Traversal)
         String originalFilename = StringUtils.cleanPath(file.getOriginalFilename() != null ? file.getOriginalFilename() : "unknown");
         if (originalFilename.contains("..") || originalFilename.contains("/") || originalFilename.contains("\\")) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "Error");
-            error.put("message", "Nom de fichier invalide.");
-            return ResponseEntity.status(400).body(error);
+            return ResponseEntity.status(400).body(AudioAnalysisResponse.builder()
+                    .status("Error")
+                    .message("Nom de fichier invalide.")
+                    .build());
         }
 
         log.info("Fichier reçu pour analyse : {}", originalFilename);
@@ -67,19 +67,19 @@ public class AudioController {
             // 4. Analyser le BPM
             double detectedBpm = performBpmAnalysis(tempFile);
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("bpm", Math.round(detectedBpm * 10.0) / 10.0);
-            response.put("fileName", originalFilename);
-            response.put("status", "Success");
-            response.put("serverMessage", "Analyse terminée avec succès !");
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(AudioAnalysisResponse.builder()
+                    .bpm(Math.round(detectedBpm * 10.0) / 10.0)
+                    .fileName(originalFilename)
+                    .status("Success")
+                    .serverMessage("Analyse terminée avec succès !")
+                    .build());
 
         } catch (Exception e) {
             log.error("Erreur lors de l'analyse BPM pour le fichier '{}'", originalFilename, e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "Error");
-            error.put("message", "Une erreur est survenue lors de l'analyse. Vérifiez que le fichier est valide.");
-            return ResponseEntity.status(500).body(error);
+            return ResponseEntity.status(500).body(AudioAnalysisResponse.builder()
+                    .status("Error")
+                    .message("Une erreur est survenue lors de l'analyse. Vérifiez que le fichier est valide.")
+                    .build());
         } finally {
             // 5. Nettoyage garanti du fichier temporaire
             if (tempFile != null && tempFile.exists()) {
