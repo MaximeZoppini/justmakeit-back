@@ -112,7 +112,6 @@ public class AudioController {
             try (AudioInputStream pcmStream = AudioSystem.getAudioInputStream(targetFormat, stream)) {
                 AudioDispatcher dispatcher = new AudioDispatcher(new JVMAudioInputStream(pcmStream), bufferSize,
                         overlap);
-                float sampleRate = targetFormat.getSampleRate();
 
                 // 3. Utilisation du ComplexOnsetDetector : bien meilleur pour les cloches et
                 // sons mélodiques
