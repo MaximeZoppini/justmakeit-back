@@ -3,17 +3,16 @@ package com.justmakeit.api.service;
 import be.tarsos.dsp.AudioDispatcher;
 import be.tarsos.dsp.io.jvm.JVMAudioInputStream;
 import be.tarsos.dsp.onsets.ComplexOnsetDetector;
-import org.springframework.stereotype.Service;
-
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.UnsupportedAudioFileException;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.UnsupportedAudioFileException;
+import org.springframework.stereotype.Service;
 
 @Service
 public class BpmAnalyzerService {
@@ -28,7 +27,8 @@ public class BpmAnalyzerService {
         return calculateBpmFromIntervals(intervals);
     }
 
-    private List<Double> detectOnsets(File audioFile) throws IOException, UnsupportedAudioFileException {
+    private List<Double> detectOnsets(File audioFile)
+        throws IOException, UnsupportedAudioFileException {
         final List<Double> onsets = new ArrayList<>();
         int bufferSize = 2048;
         int overlap = 1024;
@@ -36,9 +36,15 @@ public class BpmAnalyzerService {
         try (AudioInputStream stream = AudioSystem.getAudioInputStream(audioFile)) {
             AudioFormat targetFormat = getTargetFormat(stream.getFormat());
 
-            try (AudioInputStream pcmStream = AudioSystem.getAudioInputStream(targetFormat, stream)) {
-                AudioDispatcher dispatcher = new AudioDispatcher(new JVMAudioInputStream(pcmStream), bufferSize, overlap);
-                
+            try (
+                AudioInputStream pcmStream = AudioSystem.getAudioInputStream(targetFormat, stream)
+            ) {
+                AudioDispatcher dispatcher = new AudioDispatcher(
+                    new JVMAudioInputStream(pcmStream),
+                    bufferSize,
+                    overlap
+                );
+
                 ComplexOnsetDetector detector = new ComplexOnsetDetector(bufferSize, 0.35);
                 detector.setHandler((time, salience) -> {
                     if (onsets.isEmpty() || (time - onsets.get(onsets.size() - 1) > 0.15)) {
@@ -55,13 +61,13 @@ public class BpmAnalyzerService {
 
     private AudioFormat getTargetFormat(AudioFormat baseFormat) {
         return new AudioFormat(
-                AudioFormat.Encoding.PCM_SIGNED,
-                baseFormat.getSampleRate(),
-                16,
-                1,
-                2,
-                baseFormat.getSampleRate(),
-                false
+            AudioFormat.Encoding.PCM_SIGNED,
+            baseFormat.getSampleRate(),
+            16,
+            1,
+            2,
+            baseFormat.getSampleRate(),
+            false
         );
     }
 
@@ -81,7 +87,7 @@ public class BpmAnalyzerService {
         double medianInterval = intervals.get(intervals.size() / 2);
 
         if (medianInterval <= 0) return 128.0;
-        
+
         double detectedBpm = 60.0 / medianInterval;
         return normalizeBpm(detectedBpm);
     }

@@ -1,8 +1,4 @@
 {
-  "*.java": [
-    "prettier --write"
-  ],
-  "*.{json,yaml,yml,md}": [
-    "prettier --write"
-  ]
+    "*.java": ["prettier --write"],
+    "*.{json,yaml,yml,md}": ["prettier --write"]
 }

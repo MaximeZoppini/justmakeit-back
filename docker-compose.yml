@@ -1,78 +1,78 @@
 services:
-  # --- DATABASE ---
-  db:
-    image: postgres:16-alpine
-    container_name: justmakeit-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    # Port 5432 NON exposé sur l'host — accès interne Docker uniquement
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    # --- DATABASE ---
+    db:
+        image: postgres:16-alpine
+        container_name: justmakeit-db
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+            POSTGRES_DB: ${POSTGRES_DB}
+        # Port 5432 NON exposé sur l'host — accès interne Docker uniquement
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
 
-  # --- MINIO (STORAGE) ---
-  # minio:
-  #   image: minio/minio
-  #   container_name: justmakeit-minio
-  #   restart: unless-stopped
-  #   ports:
-  #     - "9000:9000"
-  #     - "9001:9001"
-  #   environment:
-  #     MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-  #     MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-  #   command: server /data --console-address ":9001"
-  #   volumes:
-  #     - minio_data:/data
+    # --- MINIO (STORAGE) ---
+    # minio:
+    #   image: minio/minio
+    #   container_name: justmakeit-minio
+    #   restart: unless-stopped
+    #   ports:
+    #     - "9000:9000"
+    #     - "9001:9001"
+    #   environment:
+    #     MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+    #     MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    #   command: server /data --console-address ":9001"
+    #   volumes:
+    #     - minio_data:/data
 
-  # --- AI (OLLAMA) ---
-  # ollama:
-  #   image: ollama/ollama
-  #   container_name: justmakeit-ollama
-  #   restart: unless-stopped
-  #   ports:
-  #     - "11434:11434"
-  #   volumes:
-  #     - ollama_data:/root/.ollama
+    # --- AI (OLLAMA) ---
+    # ollama:
+    #   image: ollama/ollama
+    #   container_name: justmakeit-ollama
+    #   restart: unless-stopped
+    #   ports:
+    #     - "11434:11434"
+    #   volumes:
+    #     - ollama_data:/root/.ollama
 
-  # --- GATEWAY (TRAEFIK) ---
-  traefik:
-    image: traefik:v3.0
-    container_name: justmakeit-traefik
-    command:
-      - "--api.insecure=false"          # Dashboard désactivé (pas d'accès non sécurisé)
-      - "--api.dashboard=false"         # Dashboard complètement désactivé
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-    ports:
-      - "80:80"
-      # Port 8081 (dashboard) supprimé — était exposé sans authentification
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+    # --- GATEWAY (TRAEFIK) ---
+    traefik:
+        image: traefik:v3.0
+        container_name: justmakeit-traefik
+        command:
+            - '--api.insecure=false' # Dashboard désactivé (pas d'accès non sécurisé)
+            - '--api.dashboard=false' # Dashboard complètement désactivé
+            - '--providers.docker=true'
+            - '--providers.docker.exposedbydefault=false'
+            - '--entrypoints.web.address=:80'
+        ports:
+            - '80:80'
+            # Port 8081 (dashboard) supprimé — était exposé sans authentification
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
 
-  # --- BACKEND API ---
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: justmakeit-api
-    restart: unless-stopped
-    depends_on:
-      - db
-    env_file:
-      - .env
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/${POSTGRES_DB}
-    # Port 8080 NON exposé sur l'host — tout le trafic passe par Traefik/Cloudflare
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=PathPrefix(`/api`)"
-      - "traefik.http.services.backend.loadbalancer.server.port=8080"
+    # --- BACKEND API ---
+    backend:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: justmakeit-api
+        restart: unless-stopped
+        depends_on:
+            - db
+        env_file:
+            - .env
+        environment:
+            - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/${POSTGRES_DB}
+        # Port 8080 NON exposé sur l'host — tout le trafic passe par Traefik/Cloudflare
+        labels:
+            - 'traefik.enable=true'
+            - 'traefik.http.routers.backend.rule=PathPrefix(`/api`)'
+            - 'traefik.http.services.backend.loadbalancer.server.port=8080'
 
 volumes:
-  postgres_data:
-  minio_data:
-  ollama_data:
+    postgres_data:
+    minio_data:
+    ollama_data:

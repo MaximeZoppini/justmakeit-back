@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AudioAnalysisResponse {
+
     private String status;
     private String message;
     private Double bpm;
