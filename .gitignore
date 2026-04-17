@@ -38,3 +38,5 @@ build/
 
 ### Local Spring profile (dev credentials) ###
 src/main/resources/application-local.properties
+
+node_modules/
