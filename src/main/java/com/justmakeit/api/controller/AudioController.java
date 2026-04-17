@@ -1,16 +1,16 @@
 package com.justmakeit.api.controller;
 
-// removed unused imports
+
 import com.justmakeit.api.dto.AudioAnalysisResponse;
 import com.justmakeit.api.service.BpmAnalyzerService;
 import java.io.File;
 import java.util.Set;
-// removed unused javax.sound imports
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-// removed static StringUtils import
+
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,7 +32,7 @@ public class AudioController {
         this.bpmAnalyzerService = bpmAnalyzerService;
     }
 
-    // Whitelist des types MIME audio acceptés
+    // Accepted audio MIME types
     private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
         "audio/wav",
         "audio/x-wav",
