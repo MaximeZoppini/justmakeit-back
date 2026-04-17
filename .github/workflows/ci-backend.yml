@@ -29,8 +29,11 @@ jobs:
                   distribution: 'temurin'
                   cache: 'maven'
 
+            - name: Run Static Analysis (Checkstyle & SpotBugs)
+              run: ./mvnw checkstyle:check spotbugs:check
+
             - name: Run Tests and Build with Maven
-              run: ./mvnw clean test jacoco:report
+              run: ./mvnw clean verify jacoco:report
 
             - name: Upload coverage report
               if: always()

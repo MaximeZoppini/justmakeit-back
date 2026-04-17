@@ -19,10 +19,14 @@ public class BpmAnalyzerService {
 
     public double analyze(File audioFile) throws IOException, UnsupportedAudioFileException {
         List<Double> onsets = detectOnsets(audioFile);
-        if (onsets.size() < 2) return 128.0;
+        if (onsets.size() < 2) {
+            return 128.0;
+        }
 
         List<Double> intervals = extractValidIntervals(onsets);
-        if (intervals.isEmpty()) return 128.0;
+        if (intervals.isEmpty()) {
+            return 128.0;
+        }
 
         return calculateBpmFromIntervals(intervals);
     }
@@ -86,18 +90,26 @@ public class BpmAnalyzerService {
         Collections.sort(intervals);
         double medianInterval = intervals.get(intervals.size() / 2);
 
-        if (medianInterval <= 0) return 128.0;
+        if (medianInterval <= 0) {
+            return 128.0;
+        }
 
         double detectedBpm = 60.0 / medianInterval;
         return normalizeBpm(detectedBpm);
     }
 
     private double normalizeBpm(double detectedBpm) {
-        if (Double.isInfinite(detectedBpm) || Double.isNaN(detectedBpm)) return 128.0;
-
-        while (detectedBpm > 0 && detectedBpm < 75) detectedBpm *= 2;
-        while (detectedBpm > 175) detectedBpm /= 2;
-
+        if (Double.isInfinite(detectedBpm) || Double.isNaN(detectedBpm)) {
+            return 128.0;
+        }
+        
+        while (detectedBpm > 0 && detectedBpm < 75) {
+            detectedBpm *= 2;
+        }
+        while (detectedBpm > 175) {
+            detectedBpm /= 2;
+        }
+        
         return detectedBpm;
     }
 }

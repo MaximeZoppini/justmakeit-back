@@ -1,19 +1,21 @@
 package com.justmakeit.api.controller;
 
-import be.tarsos.dsp.AudioDispatcher;
-import be.tarsos.dsp.io.jvm.JVMAudioInputStream;
-import be.tarsos.dsp.onsets.ComplexOnsetDetector;
+// removed unused imports
 import com.justmakeit.api.dto.AudioAnalysisResponse;
 import com.justmakeit.api.service.BpmAnalyzerService;
 import java.io.File;
 import java.util.Set;
-import javax.sound.sampled.*;
+// removed unused javax.sound imports
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.*;
+// removed static StringUtils import
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
@@ -44,15 +46,18 @@ public class AudioController {
     public ResponseEntity<AudioAnalysisResponse> analyzeBpm(
         @RequestParam("file") MultipartFile file
     ) {
+        String filename = file.getOriginalFilename();
         String originalFilename = org.springframework.util.StringUtils.cleanPath(
-            file.getOriginalFilename() != null ? file.getOriginalFilename() : "unknown"
+            filename != null ? filename : "unknown"
         );
 
         ResponseEntity<AudioAnalysisResponse> validationError = validateFile(
             file,
             originalFilename
         );
-        if (validationError != null) return validationError;
+        if (validationError != null) {
+            return validationError;
+        }
 
         log.info("Fichier reçu pour analyse : {}", originalFilename);
         File tempFile = null;
@@ -79,7 +84,10 @@ public class AudioController {
             );
         } finally {
             if (tempFile != null && tempFile.exists()) {
-                tempFile.delete();
+                if (!tempFile.delete()) {
+                    log.warn("Impossible de supprimer le fichier temporaire : {}", 
+                        tempFile.getAbsolutePath());
+                }
             }
         }
     }
