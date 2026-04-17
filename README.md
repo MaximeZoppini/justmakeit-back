@@ -178,6 +178,12 @@ Copiez le fichier `.env.example` en `.env` (dans ce dossier) et renseignez les v
 ./mvnw spring-boot:run
 ```
 
+### lancer les test coverage
+
+```bash
+./mvnw clean verify
+```
+
 ### 💻 Note sur le Frontend
 
 L'interface utilisateur se trouve dans le repository séparé `justmakeit-front`.
