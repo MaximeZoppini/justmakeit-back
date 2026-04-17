@@ -163,7 +163,27 @@
 								<echo message="----------------------------------------------------------"/>
 								<exec executable="awk">
 									<arg value="-F,"/>
-									<arg value="NR > 1 { instructions += $4 + $5; covered += $5 } END { if (instructions > 0) printf &quot;Total Instructions Covered: %.2f%%\n&quot;, (covered/instructions)*100; else print &quot;No instructions found.&quot; }"/>
+									<arg value="
+										NR > 1 { 
+											total_ins += $4 + $5; covered_ins += $5;
+											class_name = $3;
+											missed_lines = $8;
+											covered_lines = $9;
+											total_lines = missed_lines + covered_lines;
+											
+											if (total_lines > 0) {
+												pct = (covered_lines / total_lines) * 100;
+												if (pct &lt; 100) {
+													printf &quot;  %-30s -> %5.1f%% (%d lines missed)\n&quot;, class_name, pct, missed_lines;
+												}
+											}
+										} 
+										END { 
+											if (total_ins > 0) {
+												printf &quot;\nOVERALL COVERAGE: %.2f%%\n&quot;, (covered_ins / total_ins) * 100;
+											}
+										}
+									"/>
 									<arg value="target/site/jacoco/jacoco.csv"/>
 								</exec>
 								<echo message="Detailed report: target/site/jacoco/index.html"/>
