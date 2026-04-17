@@ -1,0 +1,37 @@
+name: CI Backend
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies (FFmpeg)
+        # Même en Java, certaines librairies audio comme TarsosDSP
+        # peuvent parfois s'appuyer sur FFMPEG pour convertir certains formats
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven' # Met en cache le ~/.m2 pour accélérer les futurs builds
+
+      - name: Run Tests and Build with Maven
+        # Lance la compilation et exécute les tests unitaires et d'intégration
+        # Le wrapper ./mvnw garantit que la bonne version de maven est utilisée
+        run: ./mvnw clean test
